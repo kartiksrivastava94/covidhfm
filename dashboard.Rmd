@@ -5,9 +5,7 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
-output: 
-  flexdashboard::flex_dashboard:
-    orientation: rows
+output: flexdashboard::flex_dashboard
 runtime: shiny
 ---
 
@@ -43,9 +41,9 @@ db$food       <- round(runif(dim(db)[1])*100, digits = 2)
 nc <- merge(nc, db, by = c("NewMand4", "New_Dist_4"))
 ```
 
-Row {data-height=50}
+Column {data-width=350}
 ------------------------------------
-### Downloads per sec (last 5 min) {.value-box}
+### State-wide estimate for population able to access food {.value-box}
 
 ```{r}
 state_av     <- formatC(weighted.mean(db$food, db$pop), digits = 2, format = "f")
@@ -58,17 +56,11 @@ renderValueBox({
   )
 })
 ```
-
-Row {data-height=950}
-------------------------------------
-
-Column {data-width=350}
--------------------------------------
   
-### Bottom 20 mandals
+### Bottom 15 mandals
 ```{r}
 db20 <-  db[order(db$food),]
-db20 <-  db20 %>% top_n(-20)
+db20 <-  db20 %>% top_n(-15)
 
 bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food, text = paste(mandalname, " ", food, "%", sep = ""))) + 
         geom_bar(stat = "identity", fill = "steelblue") +
@@ -87,7 +79,7 @@ ggplotly(bpf, tooltip = "text")
 DT::datatable(db[, c("mandalname", "food")],
               rownames = FALSE, 
               colnames = c('Mandal', '% able to access food'),
-              options = list(pageLength = 10)
+              options = list(pageLength = 5)
 )
 ``` 
 
