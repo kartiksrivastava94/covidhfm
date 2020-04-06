@@ -32,7 +32,7 @@ db <- read.dbf("C:/Users/sriva/Desktop/TSMap/TelanganaMandals.dbf")
 
 db$mandalname <- paste(db$NewMand4, db$New_Dist_4, sep = ", ")
 
-set.seed(456)
+set.seed(869)
 db$pop        <- runif(dim(db[1])) 
 
 set.seed(123)
@@ -48,19 +48,17 @@ Column {data-width=350}
 ```{r}
 state_av     <- formatC(weighted.mean(db$food, db$pop), digits = 2, format = "f")
 
-renderValueBox({
-  valueBox(
-    value = state_av,
+valueBox(
+    value = paste(state_av, "%", sep = ""),
     icon = "fa-area-chart",
     color = "steelblue"
-  )
-})
+     )
 ```
   
-### Bottom 15 mandals
+### Bottom 10 mandals
 ```{r}
 db20 <-  db[order(db$food),]
-db20 <-  db20 %>% top_n(-15)
+db20 <-  db20 %>% top_n(-10)
 
 bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food, text = paste(mandalname, " ", food, "%", sep = ""))) + 
         geom_bar(stat = "identity", fill = "steelblue") +
