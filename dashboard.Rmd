@@ -5,7 +5,9 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
-output: flexdashboard::flex_dashboard
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
 runtime: shiny
 ---
 
@@ -15,6 +17,7 @@ Food security
 ```{r, echo=FALSE, message=FALSE, results='hide'}
 rm(list = ls())
 
+library(flexdashboard)
 library(tidyverse)
 library(ggplot2)
 library(foreign)
@@ -31,11 +34,33 @@ db <- read.dbf("C:/Users/sriva/Desktop/TSMap/TelanganaMandals.dbf")
 
 db$mandalname <- paste(db$NewMand4, db$New_Dist_4, sep = ", ")
 
+set.seed(456)
+db$pop        <- runif(dim(db[1])) 
+
 set.seed(123)
 db$food       <- round(runif(dim(db)[1])*100, digits = 2)
 
 nc <- merge(nc, db, by = c("NewMand4", "New_Dist_4"))
 ```
+
+Row {data-height=50}
+------------------------------------
+### Downloads per sec (last 5 min) {.value-box}
+
+```{r}
+state_av     <- formatC(weighted.mean(db$food, db$pop), digits = 2, format = "f")
+
+renderValueBox({
+  valueBox(
+    value = state_av,
+    icon = "fa-area-chart",
+    color = "steelblue"
+  )
+})
+```
+
+Row {data-height=950}
+------------------------------------
 
 Column {data-width=350}
 -------------------------------------
@@ -45,7 +70,7 @@ Column {data-width=350}
 db20 <-  db[order(db$food),]
 db20 <-  db20 %>% top_n(-20)
 
-bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food)) + 
+bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food, text = paste(mandalname, " ", food, "%", sep = ""))) + 
         geom_bar(stat = "identity", fill = "steelblue") +
         theme(axis.title.y = element_blank(),
               axis.title.x = element_blank(),
@@ -54,7 +79,7 @@ bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food)) 
         coord_flip() + ggtitle("% able to access food")
 bpf <- bpf + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
                    panel.background = element_blank(), axis.line = element_line(colour = "black"))
-ggplotly(bpf)
+ggplotly(bpf, tooltip = "text")
 ```
 
 ### All mandals
