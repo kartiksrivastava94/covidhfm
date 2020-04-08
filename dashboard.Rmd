@@ -9,10 +9,7 @@ output: flexdashboard::flex_dashboard
 runtime: shiny
 ---
 
-Food security
-====================================
-
-```{r, echo=FALSE, message=FALSE, results='hide'}
+```{r setup, echo=FALSE, message=FALSE, results='hide'}
 rm(list = ls())
 
 library(flexdashboard)
@@ -26,8 +23,8 @@ library(sf)
 library(DT)
 
 file_name <- "C:/Users/sriva/Desktop/TSMap/TelanganaMandals.shp"
-nc <- st_read(file_name)
 
+nc <- st_read(file_name)
 db <- read.dbf("C:/Users/sriva/Desktop/TSMap/TelanganaMandals.dbf")
 
 db$mandalname <- paste(db$NewMand4, db$New_Dist_4, sep = ", ")
@@ -37,17 +34,42 @@ db$pop        <- runif(dim(db[1]))
 
 set.seed(123)
 db$food       <- round(runif(dim(db)[1])*100, digits = 2)
+db$errorfood  <- round(db$food * 0.2, digits = 1)
+db$food_disp  <- paste(db$food, "% +/- ", db$errorfood, "%", sep = "")
+
+set.seed(456)
+db$awar       <- round(runif(dim(db)[1])*100, digits = 2)
+db$errorawar  <- round(db$awar * 0.2, digits = 1)
+db$awar_disp  <- paste(db$awar, "% +/- ", db$errorawar, "%", sep = "")
+
+set.seed(789)
+db$symp       <- round(runif(dim(db)[1])*100, digits = 2)
+db$errorsymp  <- round(db$symp * 0.2, digits = 1)
+db$symp_disp  <- paste(db$symp, "% +/- ", db$errorsymp, "%", sep = "")
 
 nc <- merge(nc, db, by = c("NewMand4", "New_Dist_4"))
+
+foodlist     <-  db[c("mandalname", "food", "errorfood")]
+foodlist     <-  foodlist[order(foodlist$food),]
+foodlist     <-  foodlist %>% slice(1:10)
+    
+awarlist     <-  db[c("mandalname", "awar", "errorawar")]
+awarlist     <-  awarlist[order(awarlist$awar),]
+awarlist     <-  awarlist %>% slice(1:10)
+
+symplist     <-  db[c("mandalname", "symp", "errorsymp")]
+symplist     <-  symplist[order(symplist$symp),]
+symplist     <-  symplist %>% slice(1:10)
 ```
+
+Food security
+====================================
 
 Column {data-width=350}
 ------------------------------------
 ### State-wide estimate for population able to access food {.value-box}
-
 ```{r}
 state_av     <- formatC(weighted.mean(db$food, db$pop), digits = 2, format = "f")
-
 valueBox(
     value = paste(state_av, "%", sep = ""),
     icon = "fa-area-chart",
@@ -57,15 +79,16 @@ valueBox(
   
 ### Bottom 10 mandals
 ```{r}
-db20 <-  db[order(db$food),]
-db20 <-  db20 %>% top_n(-10)
-
-bpf <- ggplot(data = db20, mapping = aes(x = reorder(mandalname, -food), food, text = paste(mandalname, " ", food, "%", sep = ""))) + 
+bpf <- ggplot(data = foodlist, mapping = aes(x = reorder(mandalname, -food), food, 
+                                             text = paste(mandalname, " ", food, "%", sep = ""))) + 
         geom_bar(stat = "identity", fill = "steelblue") +
+        geom_errorbar(aes(ymin = food - errorfood, ymax = food + errorfood), width=.2,
+                       position=position_dodge(.9)) +
         theme(axis.title.y = element_blank(),
               axis.title.x = element_blank(),
               panel.grid.major = element_blank(), 
-              panel.grid.minor = element_blank()) +
+              panel.grid.minor = element_blank(),
+              plot.title = element_text(size = 10)) +
         coord_flip() + ggtitle("% able to access food")
 bpf <- bpf + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
                    panel.background = element_blank(), axis.line = element_line(colour = "black"))
@@ -74,7 +97,7 @@ ggplotly(bpf, tooltip = "text")
 
 ### All mandals
 ```{r}
-DT::datatable(db[, c("mandalname", "food")],
+DT::datatable(db[, c("mandalname", "food_disp")],
               rownames = FALSE, 
               colnames = c('Mandal', '% able to access food'),
               options = list(pageLength = 5)
@@ -83,10 +106,9 @@ DT::datatable(db[, c("mandalname", "food")],
 
 Column {data-width=650}
 -------------------------------------
-
 ### Interactive map
 ```{r, echo=FALSE, message=FALSE}
-plot_ly(nc) %>% 
+p_f <- plot_ly(nc) %>% 
   add_sf(
     color = ~food, 
     split = ~mandalname, 
@@ -97,4 +119,124 @@ plot_ly(nc) %>%
   ) %>%
   layout(showlegend = FALSE) %>%
   colorbar(title = "% able to access food")
+config(p_f, fillFrame = TRUE)
 ```
+
+Awareness
+====================================
+
+Column {data-width=350}
+------------------------------------
+### State-wide estimate for public health awareness {.value-box}
+```{r}
+state_av_aw     <- formatC(weighted.mean(db$awar, db$pop), digits = 2, format = "f")
+valueBox(
+    value = paste(state_av_aw, "%", sep = ""),
+    icon = "fa-area-chart",
+    color = "steelblue"
+     )
+```
+  
+### Bottom 10 mandals
+```{r}
+bpa <- ggplot(data = awarlist, mapping = aes(x = reorder(mandalname, -awar), awar, text = paste(mandalname, " ", awar, "%", sep = ""))) + 
+        geom_bar(stat = "identity", fill = "steelblue") +
+        geom_errorbar(aes(ymin = awar - errorawar, ymax = awar + errorawar), width=.2,
+                       position=position_dodge(.9)) +
+        theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              panel.grid.major = element_blank(), 
+              panel.grid.minor = element_blank(),
+              plot.title = element_text(size = 10)) +
+        coord_flip() + ggtitle("% aware of public health protocols")
+bpa <- bpa + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                   panel.background = element_blank(), axis.line = element_line(colour = "black"))
+ggplotly(bpa, tooltip = "text")
+```
+
+### All mandals
+```{r}
+DT::datatable(db[, c("mandalname", "awar_disp")],
+              rownames = FALSE, 
+              colnames = c('Mandal', '% aware of public health protocols'),
+              options = list(pageLength = 5)
+)
+``` 
+
+Column {data-width=650}
+-------------------------------------
+### Interactive map
+```{r, echo=FALSE, message=FALSE}
+p_a <- plot_ly(nc) %>% 
+  add_sf(
+    color = ~awar, 
+    split = ~mandalname, 
+    span = I(1),
+    text = ~paste(mandalname, awar),
+    hoverinfo = "text",
+    hoveron = "fills"
+  ) %>%
+  layout(showlegend = FALSE) %>%
+  colorbar(title = "% aware of public health protocols")
+config(p_a, fillFrame = TRUE)
+```
+
+Symptoms
+====================================
+
+Column {data-width=350}
+------------------------------------
+### State-wide estimate for population showing symptoms {.value-box}
+```{r}
+state_av_sp     <- formatC(weighted.mean(db$symp, db$pop), digits = 2, format = "f")
+valueBox(
+    value = paste(state_av_sp, "%", sep = ""),
+    icon = "fa-area-chart",
+    color = "steelblue"
+     )
+```
+  
+### Bottom 10 mandals
+```{r}
+bpa <- ggplot(data = symplist, mapping = aes(x = reorder(mandalname, -symp), symp, text = paste(mandalname, " ", symp, "%", sep = ""))) + 
+        geom_bar(stat = "identity", fill = "steelblue") +
+        geom_errorbar(aes(ymin = symp - errorsymp, ymax = symp + errorsymp), width=.2,
+                       position=position_dodge(.9)) +
+        theme(axis.title.y = element_blank(),
+              axis.title.x = element_blank(),
+              panel.grid.major = element_blank(), 
+              panel.grid.minor = element_blank(),
+              plot.title = element_text(size = 10)) +
+        coord_flip() + ggtitle("% population showing symptoms")
+bpa <- bpa + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                   panel.background = element_blank(), axis.line = element_line(colour = "black"))
+ggplotly(bpa, tooltip = "text")
+```
+
+### All mandals
+```{r}
+DT::datatable(db[, c("mandalname", "symp_disp")],
+              rownames = FALSE, 
+              colnames = c('Mandal', '% population showing symptoms'),
+              options = list(pageLength = 5)
+)
+``` 
+
+Column {data-width=650}
+-------------------------------------
+### Interactive map
+```{r, echo=FALSE, message=FALSE}
+p_s <- plot_ly(nc) %>% 
+  add_sf(
+    color = ~symp, 
+    split = ~mandalname, 
+    span = I(1),
+    text = ~paste(mandalname, symp),
+    hoverinfo = "text",
+    hoveron = "fills"
+  ) %>%
+  layout(showlegend = FALSE) %>%
+  colorbar(title = "% population showing symptoms")
+config(p_s, fillFrame = TRUE)
+```
+
